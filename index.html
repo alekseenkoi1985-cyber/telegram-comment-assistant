@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Comment Assistant</title>
+    <title>RSS Comment Assistant</title>
     <style>
         :root {
             --color-background: #fcfcf9;
@@ -15,6 +15,7 @@
             --color-border: rgba(94, 82, 64, 0.2);
             --color-success: #21808d;
             --color-warning: #e68161;
+            --color-danger: #c0152f;
             --radius-base: 8px;
             --radius-lg: 12px;
         }
@@ -28,6 +29,7 @@
                 --color-primary: #32b8c6;
                 --color-primary-hover: #2da6b2;
                 --color-border: rgba(119, 124, 124, 0.3);
+                --color-danger: #ff5459;
             }
         }
 
@@ -63,6 +65,36 @@
         .subtitle {
             color: var(--color-text-secondary);
             font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--color-border);
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--color-text);
+        }
+
+        .tab.active {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
         }
 
         .grid {
@@ -180,6 +212,11 @@
             background: rgba(94, 82, 64, 0.05);
         }
 
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
         .btn-group {
             display: flex;
             gap: 10px;
@@ -224,6 +261,16 @@
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
+        }
+
+        .feed-source-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(33, 128, 141, 0.1);
+            border-radius: 12px;
+            font-size: 11px;
+            color: var(--color-primary);
+            margin-top: 4px;
         }
 
         .comment-preview {
@@ -303,113 +350,270 @@
         .full-width {
             grid-column: 1 / -1;
         }
+
+        .profile-item {
+            padding: 12px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .profile-item:hover {
+            border-color: var(--color-primary);
+            background: rgba(33, 128, 141, 0.05);
+        }
+
+        .profile-item.active {
+            border-color: var(--color-primary);
+            background: rgba(33, 128, 141, 0.1);
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .profile-meta {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .profile-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .feed-list-item {
+            padding: 10px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .feed-url {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-danger {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>💬 Telegram Comment Assistant</h1>
-            <p class="subtitle">Полуавтоматический помощник для комментирования постов с использованием Perplexity AI</p>
+            <h1>💬 RSS Comment Assistant</h1>
+            <p class="subtitle">Мониторинг нескольких RSS.app фидов с профилями под разные темы</p>
         </div>
 
-        <div class="grid">
-            <!-- Настройки -->
-            <div class="card">
-                <div class="card-header">
-                    <span>⚙️</span>
-                    <span>Настройки мониторинга</span>
-                </div>
+        <div class="tabs" id="tabsContainer">
+            <button class="tab active" onclick="switchTab('profiles')">📂 Профили</button>
+            <button class="tab" onclick="switchTab('monitoring')">🔄 Мониторинг</button>
+            <button class="tab" onclick="switchTab('feed')">📰 Лента постов</button>
+            <button class="tab" onclick="switchTab('comments')">✍️ Комментарии</button>
+        </div>
 
-                <div class="input-group">
-                    <label for="apiKey">Perplexity API Key</label>
-                    <input type="password" id="apiKey" placeholder="pplx-...">
-                </div>
-
-                <div class="input-group">
-                    <label for="rssUrl">RSS-канал для мониторинга</label>
-                    <input type="text" id="rssUrl" placeholder="https://rsshub.app/telegram/channel/your_channel">
-                    <small style="color: var(--color-text-secondary); font-size: 12px; display: block; margin-top: 4px;">
-                        Используйте: https://rsshub.app/telegram/channel/USERNAME
-                    </small>
-                </div>
-
-                <div class="input-group">
-                    <label for="keywords">Ключевые слова (через Enter)</label>
-                    <input type="text" id="keywordInput" placeholder="ai, автоматизация, python">
-                    <div class="keywords-container" id="keywordsContainer"></div>
-                </div>
-
-                <div class="input-group">
-                    <label for="checkInterval">Интервал проверки (минуты)</label>
-                    <select id="checkInterval">
-                        <option value="5">5 минут</option>
-                        <option value="10" selected>10 минут</option>
-                        <option value="15">15 минут</option>
-                        <option value="30">30 минут</option>
-                    </select>
-                </div>
-
-                <div class="input-group">
-                    <label for="dateFilter">Показывать посты за последние</label>
-                    <select id="dateFilter">
-                        <option value="1">1 день</option>
-                        <option value="3" selected>3 дня</option>
-                        <option value="7">7 дней</option>
-                        <option value="14">14 дней</option>
-                        <option value="30">30 дней</option>
-                        <option value="0">Все время</option>
-                    </select>
-                </div>
-
-                <button class="btn btn-primary" id="startMonitoring">Начать мониторинг</button>
-                
-                <div style="margin-top: 12px;">
-                    <button class="btn btn-secondary" id="testRss" style="width: 100%; font-size: 13px;">
-                        🧪 Тест RSS (проверка подключения)
-                    </button>
-                </div>
-            </div>
-
-            <!-- Статус -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="status-indicator" id="statusIndicator"></div>
-                    <span>Статус системы</span>
-                </div>
-
-                <div class="info-box">
-                    ℹ️ Сервис будет мониторить новые посты по вашим темам и предлагать комментарии для одобрения. Ваш аккаунт Telegram не используется напрямую.
-                </div>
-
-                <div style="font-size: 13px; color: var(--color-text-secondary);">
-                    <div style="margin-bottom: 8px;">
-                        <strong>Состояние:</strong> <span id="statusText">Не запущен</span>
+        <!-- Вкладка: Профили -->
+        <div id="tab-profiles" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+                        <span>➕</span>
+                        <span>Создать новый профиль</span>
                     </div>
-                    <div style="margin-bottom: 8px;">
-                        <strong>Проверено постов:</strong> <span id="postsChecked">0</span>
+
+                    <div class="input-group">
+                        <label for="newProfileName">Название профиля</label>
+                        <input type="text" id="newProfileName" placeholder="AI & Автоматизация">
                     </div>
-                    <div style="margin-bottom: 8px;">
-                        <strong>Сгенерировано комментариев:</strong> <span id="commentsGenerated">0</span>
+
+                    <div class="input-group">
+                        <label for="newProfileKeywords">Ключевые слова (через Enter)</label>
+                        <input type="text" id="newProfileKeywordsInput" placeholder="ai, автоматизация, python">
+                        <div class="keywords-container" id="newProfileKeywordsContainer"></div>
                     </div>
-                    <div>
-                        <strong>Следующая проверка:</strong> <span id="nextCheck">—</span>
+
+                    <button class="btn btn-primary" onclick="createProfile()">Создать профиль</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span>📋</span>
+                        <span>Ваши профили</span>
+                    </div>
+                    <div id="profilesList">
+                        <div class="empty-state">Нет созданных профилей</div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Лента постов -->
+        <!-- Вкладка: Мониторинг -->
+        <div id="tab-monitoring" class="tab-content" style="display: none;">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+                        <span>⚙️</span>
+                        <span>Настройки мониторинга</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="apiKey">Perplexity API Key</label>
+                        <input type="password" id="apiKey" placeholder="pplx-...">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Активный профиль</label>
+                        <select id="activeProfileSelect">
+                            <option value="">Выберите профиль</option>
+                        </select>
+                    </div>
+
+                    <div class="info-box">
+                        💡 Добавьте RSS.app ссылки в активный профиль для мониторинга
+                    </div>
+
+                    <div class="input-group">
+                        <label for="newFeedUrl">Добавить RSS.app фид</label>
+                        <input type="text" id="newFeedUrl" placeholder="https://rss.app/feeds/...xml">
+                        <button class="btn btn-secondary" style="margin-top: 8px;" onclick="addFeedToProfile()">➕ Добавить фид</button>
+                    </div>
+
+                    <div id="currentProfileFeeds">
+                        <label style="margin-top: 16px;">Фиды в профиле:</label>
+                        <div id="feedsList"></div>
+                    </div>
+
+                    <div class="input-group" style="margin-top: 20px;">
+                        <label for="checkInterval">Интервал проверки</label>
+                        <select id="checkInterval">
+                            <option value="10" selected>10 минут</option>
+                            <option value="15">15 минут</option>
+                            <option value="30">30 минут</option>
+                            <option value="60">60 минут</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="dateFilter">Показывать посты за</label>
+                        <select id="dateFilter">
+                            <option value="1">1 день</option>
+                            <option value="3" selected>3 дня</option>
+                            <option value="7">7 дней</option>
+                            <option value="14">14 дней</option>
+                            <option value="0">Все время</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" id="startMonitoring" onclick="toggleMonitoring()">Начать мониторинг</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="status-indicator" id="statusIndicator"></div>
+                        <span>Статус системы</span>
+                    </div>
+
+                    <div style="font-size: 13px; color: var(--color-text-secondary);">
+                        <div style="margin-bottom: 8px;">
+                            <strong>Состояние:</strong> <span id="statusText">Не запущен</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Активный профиль:</strong> <span id="activeProfileName">—</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Фидов в мониторинге:</strong> <span id="activeFeedsCount">0</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Проверено постов:</strong> <span id="postsChecked">0</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Сгенерировано комментариев:</strong> <span id="commentsGenerated">0</span>
+                        </div>
+                        <div>
+                            <strong>Следующая проверка:</strong> <span id="nextCheck">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Лента постов -->
+        <div id="tab-feed" class="tab-content" style="display: none;">
             <div class="card full-width">
                 <div class="card-header">
                     📰 Новые посты по вашим темам
                 </div>
                 <div id="feedContainer">
-                    <div class="empty-state">
-                        Запустите мониторинг для просмотра постов
-                    </div>
+                    <div class="empty-state">Запустите мониторинг для просмотра постов</div>
                 </div>
             </div>
+        </div>
 
-            <!-- Генерация комментария -->
+        <!-- Вкладка: Комментарии -->
+        <div id="tab-comments" class="tab-content" style="display: none;">
             <div class="card full-width">
                 <div class="card-header">
                     ✍️ Генерация комментария
@@ -431,7 +635,7 @@
                         </select>
                     </div>
 
-                    <button class="btn btn-primary" id="generateComment">Сгенерировать комментарий</button>
+                    <button class="btn btn-primary" onclick="generateComment()">Сгенерировать комментарий</button>
 
                     <div id="commentPreviewArea" style="display: none;">
                         <div class="comment-preview">
@@ -440,17 +644,17 @@
                         </div>
 
                         <div class="btn-group">
-                            <button class="btn btn-primary" id="approveComment">✅ Опубликовать</button>
-                            <button class="btn btn-secondary" id="regenerateComment">🔄 Перегенерировать</button>
-                            <button class="btn btn-secondary" id="editComment">✏️ Редактировать</button>
+                            <button class="btn btn-primary" onclick="approveComment()">✅ Опубликовать</button>
+                            <button class="btn btn-secondary" onclick="regenerateComment()">🔄 Перегенерировать</button>
+                            <button class="btn btn-secondary" onclick="editComment()">✏️ Редактировать</button>
                         </div>
 
                         <div class="input-group" id="editArea" style="display: none; margin-top: 16px;">
                             <label>Отредактированный комментарий:</label>
                             <textarea id="editedComment" rows="4"></textarea>
                             <div class="btn-group" style="margin-top: 8px;">
-                                <button class="btn btn-primary" id="saveEdit">Сохранить и опубликовать</button>
-                                <button class="btn btn-secondary" id="cancelEdit">Отмена</button>
+                                <button class="btn btn-primary" onclick="saveEditedComment()">Сохранить и опубликовать</button>
+                                <button class="btn btn-secondary" onclick="cancelEdit()">Отмена</button>
                             </div>
                         </div>
                     </div>
@@ -461,157 +665,405 @@
                 </div>
             </div>
         </div>
+
+        <!-- Модальные окна -->
+        <div id="editProfileModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">Редактировать профиль</div>
+                <div class="input-group">
+                    <label>Название профиля</label>
+                    <input type="text" id="editProfileName">
+                </div>
+                <div class="input-group">
+                    <label>Ключевые слова (через Enter)</label>
+                    <input type="text" id="editProfileKeywordsInput">
+                    <div class="keywords-container" id="editProfileKeywordsContainer"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="saveProfileEdit()">Сохранить</button>
+                    <button class="btn btn-secondary" onclick="closeModal('editProfileModal')">Отмена</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // Состояние приложения
+        // Глобальное состояние
         const state = {
+            profiles: [],
+            activeProfileId: null,
             monitoring: false,
-            keywords: [],
             selectedPost: null,
             posts: [],
             processedPostIds: new Set(),
-            stats: {
-                postsChecked: 0,
-                commentsGenerated: 0
-            },
+            stats: { postsChecked: 0, commentsGenerated: 0 },
             checkInterval: null,
-            nextCheckTime: null
+            nextCheckTime: null,
+            newProfileKeywords: [],
+            editingProfileKeywords: []
         };
 
-        // Загрузка сохранённых данных
-        function loadSavedState() {
-            const saved = localStorage.getItem('telegramCommentAssistant');
+        // Загрузка данных
+        function loadState() {
+            const saved = localStorage.getItem('rssCommentAssistant');
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
-                    state.keywords = data.keywords || [];
+                    state.profiles = data.profiles || [];
+                    state.activeProfileId = data.activeProfileId || null;
                     state.processedPostIds = new Set(data.processedPostIds || []);
                     state.stats = data.stats || { postsChecked: 0, commentsGenerated: 0 };
-                    if (data.apiKey) elements.apiKey.value = data.apiKey;
-                    if (data.rssUrl) elements.rssUrl.value = data.rssUrl;
-                    if (data.checkInterval) elements.checkInterval.value = data.checkInterval;
-                    if (data.dateFilter) elements.dateFilter.value = data.dateFilter;
-                    renderKeywords();
+                    
+                    const apiKey = data.apiKey || '';
+                    if (apiKey) document.getElementById('apiKey').value = apiKey;
+                    
+                    const checkInterval = data.checkInterval || '10';
+                    document.getElementById('checkInterval').value = checkInterval;
+                    
+                    const dateFilter = data.dateFilter || '3';
+                    document.getElementById('dateFilter').value = dateFilter;
+                    
+                    renderProfiles();
+                    updateActiveProfileSelect();
                     updateStats();
                 } catch (e) {
-                    console.error('Ошибка загрузки данных:', e);
+                    console.error('Ошибка загрузки:', e);
                 }
             }
         }
 
-        // Сохранение состояния
+        // Сохранение данных
         function saveState() {
-            const dataToSave = {
-                apiKey: elements.apiKey.value,
-                rssUrl: elements.rssUrl.value,
-                checkInterval: elements.checkInterval.value,
-                dateFilter: elements.dateFilter.value,
-                keywords: state.keywords,
+            const data = {
+                profiles: state.profiles,
+                activeProfileId: state.activeProfileId,
                 processedPostIds: Array.from(state.processedPostIds),
-                stats: state.stats
+                stats: state.stats,
+                apiKey: document.getElementById('apiKey').value,
+                checkInterval: document.getElementById('checkInterval').value,
+                dateFilter: document.getElementById('dateFilter').value
             };
-            localStorage.setItem('telegramCommentAssistant', JSON.stringify(dataToSave));
+            localStorage.setItem('rssCommentAssistant', JSON.stringify(data));
         }
 
-        // Элементы DOM
-        const elements = {
-            apiKey: document.getElementById('apiKey'),
-            rssUrl: document.getElementById('rssUrl'),
-            keywordInput: document.getElementById('keywordInput'),
-            keywordsContainer: document.getElementById('keywordsContainer'),
-            checkInterval: document.getElementById('checkInterval'),
-            dateFilter: document.getElementById('dateFilter'),
-            startMonitoring: document.getElementById('startMonitoring'),
-            statusIndicator: document.getElementById('statusIndicator'),
-            statusText: document.getElementById('statusText'),
-            postsChecked: document.getElementById('postsChecked'),
-            commentsGenerated: document.getElementById('commentsGenerated'),
-            nextCheck: document.getElementById('nextCheck'),
-            feedContainer: document.getElementById('feedContainer'),
-            generationArea: document.getElementById('generationArea'),
-            noPostSelected: document.getElementById('noPostSelected'),
-            selectedPostPreview: document.getElementById('selectedPostPreview'),
-            commentStyle: document.getElementById('commentStyle'),
-            generateComment: document.getElementById('generateComment'),
-            commentPreviewArea: document.getElementById('commentPreviewArea'),
-            generatedComment: document.getElementById('generatedComment'),
-            approveComment: document.getElementById('approveComment'),
-            regenerateComment: document.getElementById('regenerateComment'),
-            editComment: document.getElementById('editComment'),
-            editArea: document.getElementById('editArea'),
-            editedComment: document.getElementById('editedComment'),
-            saveEdit: document.getElementById('saveEdit'),
-            cancelEdit: document.getElementById('cancelEdit')
-        };
+        // Переключение вкладок
+        function switchTab(tabName) {
+            const clickedTab = event ? event.target : null;
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
+            
+            if (clickedTab) {
+                clickedTab.classList.add('active');
+            }
+            document.getElementById(`tab-${tabName}`).style.display = 'block';
+            
+            if (tabName === 'monitoring') {
+                updateFeedsList();
+            }
+        }
 
-        // Добавление ключевых слов
-        elements.keywordInput.addEventListener('keypress', (e) => {
+        // === ПРОФИЛИ ===
+        
+        // Обработка ключевых слов для нового профиля
+        document.getElementById('newProfileKeywordsInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && e.target.value.trim()) {
                 const keyword = e.target.value.trim();
-                if (!state.keywords.includes(keyword)) {
-                    state.keywords.push(keyword);
-                    renderKeywords();
+                if (!state.newProfileKeywords.includes(keyword)) {
+                    state.newProfileKeywords.push(keyword);
+                    renderNewProfileKeywords();
                 }
                 e.target.value = '';
             }
         });
 
-        function renderKeywords() {
-            elements.keywordsContainer.innerHTML = state.keywords.map((kw, index) => `
+        function renderNewProfileKeywords() {
+            const container = document.getElementById('newProfileKeywordsContainer');
+            container.innerHTML = state.newProfileKeywords.map((kw, idx) => `
                 <span class="keyword-tag">
                     ${kw}
-                    <button onclick="removeKeyword(${index})">×</button>
+                    <button onclick="removeNewProfileKeyword(${idx})">×</button>
                 </span>
             `).join('');
         }
 
-        function removeKeyword(index) {
-            state.keywords.splice(index, 1);
-            renderKeywords();
+        function removeNewProfileKeyword(index) {
+            state.newProfileKeywords.splice(index, 1);
+            renderNewProfileKeywords();
         }
 
-        // Мониторинг
-        elements.startMonitoring.addEventListener('click', () => {
+        function createProfile() {
+            const name = document.getElementById('newProfileName').value.trim();
+            if (!name) {
+                alert('Введите название профиля');
+                return;
+            }
+            
+            const profile = {
+                id: Date.now().toString(),
+                name: name,
+                keywords: [...state.newProfileKeywords],
+                feeds: [],
+                createdAt: new Date().toISOString()
+            };
+            
+            state.profiles.push(profile);
+            state.newProfileKeywords = [];
+            
+            document.getElementById('newProfileName').value = '';
+            renderNewProfileKeywords();
+            renderProfiles();
+            updateActiveProfileSelect();
+            saveState();
+            
+            alert(`✅ Профиль "${name}" создан`);
+        }
+
+        function renderProfiles() {
+            const container = document.getElementById('profilesList');
+            
+            if (state.profiles.length === 0) {
+                container.innerHTML = '<div class="empty-state">Нет созданных профилей</div>';
+                return;
+            }
+            
+            container.innerHTML = state.profiles.map(profile => `
+                <div class="profile-item ${profile.id === state.activeProfileId ? 'active' : ''}">
+                    <div class="profile-info">
+                        <div class="profile-name">${profile.name}</div>
+                        <div class="profile-meta">
+                            ${profile.keywords.length} ключевых слов • ${profile.feeds.length} фидов
+                        </div>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="btn btn-secondary btn-small" onclick="setActiveProfile('${profile.id}')">
+                            ${profile.id === state.activeProfileId ? '✓ Активен' : 'Выбрать'}
+                        </button>
+                        <button class="btn btn-secondary btn-small" onclick="editProfile('${profile.id}')">✏️</button>
+                        <button class="btn btn-secondary btn-small" onclick="deleteProfile('${profile.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function setActiveProfile(profileId) {
+            state.activeProfileId = profileId;
+            renderProfiles();
+            updateActiveProfileSelect();
+            updateFeedsList();
+            saveState();
+        }
+
+        function editProfile(profileId) {
+            const profile = state.profiles.find(p => p.id === profileId);
+            if (!profile) return;
+            
+            document.getElementById('editProfileName').value = profile.name;
+            state.editingProfileKeywords = [...profile.keywords];
+            renderEditProfileKeywords();
+            
+            document.getElementById('editProfileModal').classList.add('show');
+            document.getElementById('editProfileModal').dataset.profileId = profileId;
+            
+            // Обработчик ключевых слов в модальном окне
+            const input = document.getElementById('editProfileKeywordsInput');
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                    const keyword = e.target.value.trim();
+                    if (!state.editingProfileKeywords.includes(keyword)) {
+                        state.editingProfileKeywords.push(keyword);
+                        renderEditProfileKeywords();
+                    }
+                    e.target.value = '';
+                }
+            };
+        }
+
+        function renderEditProfileKeywords() {
+            const container = document.getElementById('editProfileKeywordsContainer');
+            container.innerHTML = state.editingProfileKeywords.map((kw, idx) => `
+                <span class="keyword-tag">
+                    ${kw}
+                    <button onclick="removeEditProfileKeyword(${idx})">×</button>
+                </span>
+            `).join('');
+        }
+
+        function removeEditProfileKeyword(index) {
+            state.editingProfileKeywords.splice(index, 1);
+            renderEditProfileKeywords();
+        }
+
+        function saveProfileEdit() {
+            const modal = document.getElementById('editProfileModal');
+            const profileId = modal.dataset.profileId;
+            const profile = state.profiles.find(p => p.id === profileId);
+            
+            if (!profile) return;
+            
+            const newName = document.getElementById('editProfileName').value.trim();
+            if (!newName) {
+                alert('Введите название профиля');
+                return;
+            }
+            
+            profile.name = newName;
+            profile.keywords = [...state.editingProfileKeywords];
+            
+            closeModal('editProfileModal');
+            renderProfiles();
+            updateActiveProfileSelect();
+            saveState();
+        }
+
+        function deleteProfile(profileId) {
+            const profile = state.profiles.find(p => p.id === profileId);
+            if (!profile) return;
+            
+            if (!confirm(`Удалить профиль "${profile.name}"?`)) return;
+            
+            state.profiles = state.profiles.filter(p => p.id !== profileId);
+            
+            if (state.activeProfileId === profileId) {
+                state.activeProfileId = null;
+            }
+            
+            renderProfiles();
+            updateActiveProfileSelect();
+            saveState();
+        }
+
+        function updateActiveProfileSelect() {
+            const select = document.getElementById('activeProfileSelect');
+            select.innerHTML = '<option value="">Выберите профиль</option>' +
+                state.profiles.map(p => `
+                    <option value="${p.id}" ${p.id === state.activeProfileId ? 'selected' : ''}>
+                        ${p.name}
+                    </option>
+                `).join('');
+            
+            select.onchange = () => {
+                state.activeProfileId = select.value || null;
+                updateFeedsList();
+                updateStats();
+                saveState();
+            };
+            
+            updateStats();
+        }
+
+        // === ФИДЫ ===
+        
+        function addFeedToProfile() {
+            if (!state.activeProfileId) {
+                alert('Выберите активный профиль');
+                return;
+            }
+            
+            const url = document.getElementById('newFeedUrl').value.trim();
+            if (!url) {
+                alert('Введите RSS.app URL');
+                return;
+            }
+            
+            if (!url.includes('rss.app')) {
+                alert('Используйте ссылки с rss.app');
+                return;
+            }
+            
+            const profile = state.profiles.find(p => p.id === state.activeProfileId);
+            if (!profile) return;
+            
+            if (profile.feeds.includes(url)) {
+                alert('Этот фид уже добавлен');
+                return;
+            }
+            
+            profile.feeds.push(url);
+            document.getElementById('newFeedUrl').value = '';
+            updateFeedsList();
+            saveState();
+        }
+
+        function updateFeedsList() {
+            const container = document.getElementById('feedsList');
+            
+            if (!state.activeProfileId) {
+                container.innerHTML = '<div class="empty-state" style="padding: 20px 10px;">Выберите профиль</div>';
+                return;
+            }
+            
+            const profile = state.profiles.find(p => p.id === state.activeProfileId);
+            if (!profile || profile.feeds.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 20px 10px;">Нет фидов</div>';
+                return;
+            }
+            
+            container.innerHTML = profile.feeds.map((feed, idx) => `
+                <div class="feed-list-item">
+                    <div class="feed-url" title="${feed}">${feed}</div>
+                    <button class="btn btn-secondary btn-small" onclick="removeFeed(${idx})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFeed(index) {
+            const profile = state.profiles.find(p => p.id === state.activeProfileId);
+            if (!profile) return;
+            
+            profile.feeds.splice(index, 1);
+            updateFeedsList();
+            saveState();
+        }
+
+        // === МОНИТОРИНГ ===
+        
+        function toggleMonitoring() {
             if (!state.monitoring) {
                 startMonitoring();
             } else {
                 stopMonitoring();
             }
-        });
+        }
 
         function startMonitoring() {
-            if (!elements.apiKey.value) {
-                alert('Пожалуйста, введите Perplexity API Key');
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                alert('Введите Perplexity API Key');
                 return;
             }
-            if (!elements.rssUrl.value) {
-                alert('Пожалуйста, введите RSS URL');
+            
+            if (!state.activeProfileId) {
+                alert('Выберите активный профиль');
                 return;
             }
-
+            
+            const profile = state.profiles.find(p => p.id === state.activeProfileId);
+            if (!profile || profile.feeds.length === 0) {
+                alert('Добавьте хотя бы один RSS.app фид в профиль');
+                return;
+            }
+            
             state.monitoring = true;
-            elements.startMonitoring.textContent = 'Остановить мониторинг';
-            elements.startMonitoring.style.background = '#e68161';
-            elements.statusIndicator.classList.add('active');
-            elements.statusText.textContent = 'Активен';
-
-            // Первая проверка сразу
+            document.getElementById('startMonitoring').textContent = 'Остановить мониторинг';
+            document.getElementById('startMonitoring').style.background = '#e68161';
+            document.getElementById('statusIndicator').classList.add('active');
+            document.getElementById('statusText').textContent = 'Активен';
+            
             checkForNewPosts();
-
-            // Установка интервала
-            const intervalMinutes = parseInt(elements.checkInterval.value);
+            
+            const intervalMinutes = parseInt(document.getElementById('checkInterval').value);
             state.checkInterval = setInterval(checkForNewPosts, intervalMinutes * 60 * 1000);
             updateNextCheckTime(intervalMinutes);
         }
 
         function stopMonitoring() {
             state.monitoring = false;
-            elements.startMonitoring.textContent = 'Начать мониторинг';
-            elements.startMonitoring.style.background = '';
-            elements.statusIndicator.classList.remove('active');
-            elements.statusText.textContent = 'Остановлен';
-            elements.nextCheck.textContent = '—';
+            document.getElementById('startMonitoring').textContent = 'Начать мониторинг';
+            document.getElementById('startMonitoring').style.background = '';
+            document.getElementById('statusIndicator').classList.remove('active');
+            document.getElementById('statusText').textContent = 'Остановлен';
+            document.getElementById('nextCheck').textContent = '—';
             
             if (state.checkInterval) {
                 clearInterval(state.checkInterval);
@@ -623,195 +1075,215 @@
             if (!state.monitoring) return;
             
             state.nextCheckTime = new Date(Date.now() + minutes * 60 * 1000);
-            elements.nextCheck.textContent = state.nextCheckTime.toLocaleTimeString('ru-RU', {
+            document.getElementById('nextCheck').textContent = state.nextCheckTime.toLocaleTimeString('ru-RU', {
                 hour: '2-digit',
                 minute: '2-digit'
             });
         }
 
-        // Проверка новых постов через RSS
         async function checkForNewPosts() {
             console.log('Проверка новых постов...');
             
-            const rssUrl = elements.rssUrl.value.trim();
-            if (!rssUrl) return;
-
-            try {
-                // Используем CORS-прокси для доступа к RSS
-                const proxyUrl = 'https://api.allorigins.win/get?url=';
-                const response = await fetch(proxyUrl + encodeURIComponent(rssUrl));
-                
-                if (!response.ok) {
-                    throw new Error('Ошибка загрузки RSS');
-                }
-
-                const data = await response.json();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
-                
-                // Парсинг RSS (поддержка разных форматов)
-                const items = xmlDoc.getElementsByTagName('item');
-                const entries = xmlDoc.getElementsByTagName('entry'); // Atom формат
-                
-                const feedItems = items.length > 0 ? items : entries;
-                let newPostsCount = 0;
-
-                for (let i = 0; i < Math.min(feedItems.length, 10); i++) {
-                    const item = feedItems[i];
+            const profile = state.profiles.find(p => p.id === state.activeProfileId);
+            if (!profile || profile.feeds.length === 0) return;
+            
+            let totalNewPosts = 0;
+            
+            for (const feedUrl of profile.feeds) {
+                try {
+                    const response = await fetch(feedUrl);
                     
-                    // Извлечение данных (RSS или Atom)
-                    const titleEl = item.getElementsByTagName('title')[0];
-                    const linkEl = item.getElementsByTagName('link')[0];
-                    const descEl = item.getElementsByTagName('description')[0] || 
-                                   item.getElementsByTagName('summary')[0];
-                    const pubDateEl = item.getElementsByTagName('pubDate')[0] || 
-                                      item.getElementsByTagName('published')[0];
+                    if (!response.ok) {
+                        console.error(`Ошибка загрузки ${feedUrl}: HTTP ${response.status}`);
+                        continue;
+                    }
                     
-                    if (!titleEl && !descEl) continue;
-
-                    const title = titleEl ? titleEl.textContent : '';
-                    const description = descEl ? descEl.textContent : '';
-                    const text = (title + ' ' + description).trim();
+                    const xmlText = await response.text();
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
                     
-                    // Создание уникального ID
-                    const link = linkEl ? (linkEl.getAttribute('href') || linkEl.textContent) : '';
-                    const postId = link || text.substring(0, 100);
+                    const items = xmlDoc.getElementsByTagName('item');
+                    const entries = xmlDoc.getElementsByTagName('entry');
+                    const feedItems = items.length > 0 ? items : entries;
                     
-                    // Извлечение названия канала из RSS
-                    const channelEl = xmlDoc.getElementsByTagName('title')[0];
-                    const channel = channelEl ? channelEl.textContent : 'Unknown Channel';
-                    
-                    const timestamp = pubDateEl ? new Date(pubDateEl.textContent) : new Date();
-                    
-                    // Фильтрация по дате (проверяем ПЕРЕД добавлением в processedPostIds)
-                    const dateFilterDays = parseInt(elements.dateFilter.value);
-                    if (dateFilterDays > 0) {
-                        const cutoffDate = new Date();
-                        cutoffDate.setDate(cutoffDate.getDate() - dateFilterDays);
-                        if (timestamp < cutoffDate) {
-                            // Добавляем в обработанные, чтобы не проверять повторно
-                            state.processedPostIds.add(postId);
-                            continue;
+                    for (let i = 0; i < Math.min(feedItems.length, 20); i++) {
+                        const item = feedItems[i];
+                        
+                        const titleEl = item.getElementsByTagName('title')[0];
+                        const linkEl = item.getElementsByTagName('link')[0];
+                        const descEl = item.getElementsByTagName('description')[0] ||
+                                       item.getElementsByTagName('content')[0] ||
+                                       item.getElementsByTagName('summary')[0];
+                        const pubDateEl = item.getElementsByTagName('pubDate')[0] ||
+                                          item.getElementsByTagName('published')[0] ||
+                                          item.getElementsByTagName('updated')[0];
+                        
+                        if (!titleEl && !descEl) continue;
+                        
+                        const title = titleEl ? titleEl.textContent : '';
+                        let description = descEl ? descEl.textContent : '';
+                        
+                        if (description) {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = description;
+                            description = tempDiv.textContent || tempDiv.innerText || '';
                         }
+                        
+                        const text = (title + ' ' + description).trim();
+                        const link = (linkEl && (linkEl.getAttribute('href') || linkEl.textContent)) || '';
+                        const postId = link || text.substring(0, 120);
+                        
+                        const channelTitleEl = xmlDoc.getElementsByTagName('title')[0];
+                        const channel = channelTitleEl ? channelTitleEl.textContent : 'RSS.app feed';
+                        
+                        const timestamp = pubDateEl ? new Date(pubDateEl.textContent) : new Date();
+                        
+                        const dateFilterDays = parseInt(document.getElementById('dateFilter').value);
+                        if (dateFilterDays > 0) {
+                            const cutoff = new Date();
+                            cutoff.setDate(cutoff.getDate() - dateFilterDays);
+                            if (timestamp < cutoff) {
+                                state.processedPostIds.add(postId);
+                                continue;
+                            }
+                        }
+                        
+                        if (state.processedPostIds.has(postId)) continue;
+                        
+                        if (!matchesKeywords(text, profile.keywords)) continue;
+                        
+                        const post = {
+                            id: postId,
+                            channel,
+                            text: text.length > 500 ? text.substring(0, 500) + '...' : text,
+                            timestamp,
+                            link,
+                            feedSource: feedUrl
+                        };
+                        
+                        state.posts.unshift(post);
+                        state.processedPostIds.add(postId);
+                        totalNewPosts++;
                     }
                     
-                    // Пропускаем уже обработанные посты
-                    if (state.processedPostIds.has(postId)) continue;
-                    
-                    // Фильтрация по ключевым словам
-                    if (state.keywords.length > 0 && !matchesKeywords(text)) continue;
-                    
-                    const post = {
-                        id: postId,
-                        channel: channel,
-                        text: text.length > 500 ? text.substring(0, 500) + '...' : text,
-                        timestamp: timestamp,
-                        link: link
-                    };
-
-                    state.posts.unshift(post);
-                    state.processedPostIds.add(postId);
-                    newPostsCount++;
+                } catch (error) {
+                    console.error(`Ошибка обработки ${feedUrl}:`, error);
                 }
-
-                state.stats.postsChecked += newPostsCount;
-                
-                if (newPostsCount > 0) {
-                    renderPosts();
-                    updateStats();
-                    saveState();
-                    
-                    // Уведомление о новых постах
-                    if (Notification.permission === 'granted') {
-                        new Notification('Новые посты!', {
-                            body: `Найдено ${newPostsCount} новых постов по вашим темам`,
-                            icon: '💬'
-                        });
-                    }
-                }
-
-                console.log(`✅ Проверка завершена. Новых постов: ${newPostsCount}`);
-
-            } catch (error) {
-                console.error('Ошибка проверки RSS:', error);
-                elements.statusText.textContent = 'Ошибка загрузки RSS';
             }
-
-            updateNextCheckTime(parseInt(elements.checkInterval.value));
+            
+            state.stats.postsChecked += totalNewPosts;
+            
+            if (totalNewPosts > 0) {
+                renderPosts();
+                updateStats();
+                saveState();
+                
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Новые посты из RSS.app', {
+                        body: `Найдено ${totalNewPosts} новых постов`
+                    });
+                }
+            }
+            
+            console.log(`Проверка завершена. Новых постов: ${totalNewPosts}`);
+            document.getElementById('statusText').textContent = 'Активен';
+            
+            updateNextCheckTime(parseInt(document.getElementById('checkInterval').value));
         }
 
-        function matchesKeywords(text) {
+        function matchesKeywords(text, keywords) {
+            if (keywords.length === 0) return true;
             const lowerText = text.toLowerCase();
-            return state.keywords.some(kw => lowerText.includes(kw.toLowerCase()));
+            return keywords.some(kw => lowerText.includes(kw.toLowerCase()));
         }
 
         function renderPosts() {
+            const container = document.getElementById('feedContainer');
+            
             if (state.posts.length === 0) {
-                elements.feedContainer.innerHTML = '<div class="empty-state">Пока нет новых постов</div>';
+                container.innerHTML = '<div class="empty-state">Пока нет новых постов</div>';
                 return;
             }
-
-            elements.feedContainer.innerHTML = state.posts.map((post, index) => `
+            
+            container.innerHTML = state.posts.map((post, index) => `
                 <div class="feed-item ${state.selectedPost?.id === post.id ? 'selected' : ''}" onclick="selectPost(${index})">
                     <div class="feed-item-header">
                         <span>${post.channel}</span>
                         <span>${new Date(post.timestamp).toLocaleString('ru-RU')}</span>
                     </div>
                     <div class="feed-item-text">${post.text}</div>
+                    <div class="feed-source-tag">${extractFeedName(post.feedSource)}</div>
                 </div>
             `).join('');
+        }
+
+        function extractFeedName(url) {
+            try {
+                const match = url.match(/feeds\/([^.]+)/);
+                return match ? match[1].substring(0, 12) : 'RSS feed';
+            } catch {
+                return 'RSS feed';
+            }
         }
 
         function selectPost(index) {
             state.selectedPost = state.posts[index];
             renderPosts();
             
-            elements.generationArea.style.display = 'block';
-            elements.noPostSelected.style.display = 'none';
-            elements.commentPreviewArea.style.display = 'none';
-            elements.editArea.style.display = 'none';
+            document.getElementById('generationArea').style.display = 'block';
+            document.getElementById('noPostSelected').style.display = 'none';
+            document.getElementById('commentPreviewArea').style.display = 'none';
+            document.getElementById('editArea').style.display = 'none';
             
-            elements.selectedPostPreview.textContent = state.selectedPost.text.substring(0, 150) + '...';
+            document.getElementById('selectedPostPreview').textContent = 
+                state.selectedPost.text.substring(0, 200) + '...';
+            
+            // Переключение на вкладку комментариев
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
+            
+            document.querySelectorAll('.tab')[3].classList.add('active');
+            document.getElementById('tab-comments').style.display = 'block';
         }
 
-        // Генерация комментария
-        elements.generateComment.addEventListener('click', async () => {
+        // === ГЕНЕРАЦИЯ КОММЕНТАРИЕВ ===
+        
+        async function generateComment() {
             if (!state.selectedPost) return;
-
-            elements.generateComment.disabled = true;
-            elements.generateComment.textContent = 'Генерирую...';
-
+            
+            const btn = document.querySelector('#generationArea .btn-primary');
+            btn.disabled = true;
+            btn.textContent = 'Генерирую...';
+            
             try {
                 const comment = await generateCommentWithPerplexity();
-                elements.generatedComment.textContent = comment;
-                elements.commentPreviewArea.style.display = 'block';
+                document.getElementById('generatedComment').textContent = comment;
+                document.getElementById('commentPreviewArea').style.display = 'block';
                 state.stats.commentsGenerated++;
                 updateStats();
+                saveState();
             } catch (error) {
                 alert('Ошибка генерации: ' + error.message);
             } finally {
-                elements.generateComment.disabled = false;
-                elements.generateComment.textContent = 'Сгенерировать комментарий';
+                btn.disabled = false;
+                btn.textContent = 'Сгенерировать комментарий';
             }
-        });
+        }
 
         async function generateCommentWithPerplexity() {
-            const apiKey = elements.apiKey.value.trim();
-            if (!apiKey) {
-                throw new Error('Введите Perplexity API Key');
-            }
-
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) throw new Error('Введите Perplexity API Key');
+            
             const postText = state.selectedPost.text;
-            const style = elements.commentStyle.value;
-
-            // Создание промпта в зависимости от стиля
+            const style = document.getElementById('commentStyle').value;
+            
             const stylePrompts = {
                 professional: 'Напиши профессиональный комментарий (2-3 предложения) к этому посту. Комментарий должен добавлять ценность, показывать экспертизу в IT и автоматизации бизнес-процессов. Без эмодзи.',
                 friendly: 'Напиши дружелюбный комментарий (2-3 предложения) к этому посту. Покажи личный опыт и заинтересованность темой. Без эмодзи.',
                 expert: 'Напиши экспертный комментарий (2-3 предложения) к этому посту. Задай уточняющий технический вопрос или поделись глубоким инсайтом. Без эмодзи.',
                 question: 'Напиши комментарий-вопрос (1-2 предложения) к этому посту. Задай релевантный вопрос, который поможет узнать больше деталей. Без эмодзи.'
             };
-
+            
             const systemPrompt = `Ты - эксперт в области IT, автоматизации бизнес-процессов, управления проектами и AI. 
 Твоя задача - написать качественный комментарий к посту в Telegram-канале.
 
@@ -822,92 +1294,73 @@
 - Профессиональный тон
 - Не повторяй содержание поста
 - Добавляй ценность или задавай умные вопросы`;
-
+            
             const userPrompt = `${stylePrompts[style]}
 
 Пост:
 "${postText}"
 
 Твой комментарий:`;
-
-            try {
-                const response = await fetch('https://api.perplexity.ai/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'llama-3.1-sonar-small-128k-online',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: systemPrompt
-                            },
-                            {
-                                role: 'user',
-                                content: userPrompt
-                            }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 150
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error?.message || 'Ошибка API');
-                }
-
-                const data = await response.json();
-                let comment = data.choices[0].message.content.trim();
-
-                // Очистка от возможных кавычек в начале/конце
-                comment = comment.replace(/^["']|["']$/g, '');
-                
-                // Ограничение длины
-                if (comment.length > 300) {
-                    comment = comment.substring(0, 297) + '...';
-                }
-
-                return comment;
-
-            } catch (error) {
-                console.error('Ошибка Perplexity API:', error);
-                throw new Error(`Ошибка генерации: ${error.message}`);
+            
+            const response = await fetch('https://api.perplexity.ai/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.1-sonar-small-128k-online',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 150
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'Ошибка API');
             }
+            
+            const data = await response.json();
+            let comment = data.choices[0].message.content.trim();
+            comment = comment.replace(/^["']|["']$/g, '');
+            
+            if (comment.length > 300) {
+                comment = comment.substring(0, 297) + '...';
+            }
+            
+            return comment;
         }
 
-        // Действия с комментарием
-        elements.approveComment.addEventListener('click', () => {
-            const comment = elements.generatedComment.textContent;
+        function regenerateComment() {
+            generateComment();
+        }
+
+        function editComment() {
+            document.getElementById('editArea').style.display = 'block';
+            document.getElementById('editedComment').value = 
+                document.getElementById('generatedComment').textContent;
+        }
+
+        function cancelEdit() {
+            document.getElementById('editArea').style.display = 'none';
+        }
+
+        function saveEditedComment() {
+            const comment = document.getElementById('editedComment').value;
             publishComment(comment);
-        });
+        }
 
-        elements.regenerateComment.addEventListener('click', () => {
-            elements.generateComment.click();
-        });
-
-        elements.editComment.addEventListener('click', () => {
-            elements.editArea.style.display = 'block';
-            elements.editedComment.value = elements.generatedComment.textContent;
-        });
-
-        elements.saveEdit.addEventListener('click', () => {
-            const comment = elements.editedComment.value;
+        function approveComment() {
+            const comment = document.getElementById('generatedComment').textContent;
             publishComment(comment);
-        });
-
-        elements.cancelEdit.addEventListener('click', () => {
-            elements.editArea.style.display = 'none';
-        });
+        }
 
         function publishComment(comment) {
-            // Копирование в буфер обмена
             navigator.clipboard.writeText(comment).then(() => {
-                const link = state.selectedPost.link || 'Telegram';
-                
-                // Создание красивого уведомления
                 const notification = document.createElement('div');
                 notification.style.cssText = `
                     position: fixed;
@@ -926,32 +1379,45 @@
                     <div style="font-size: 13px; opacity: 0.9;">Откройте Telegram и опубликуйте вручную</div>
                 `;
                 document.body.appendChild(notification);
-
+                
                 setTimeout(() => {
                     notification.style.animation = 'slideOut 0.3s ease';
                     setTimeout(() => notification.remove(), 300);
                 }, 3000);
-
-                // Попытка открыть ссылку (если есть)
-                if (link && link.startsWith('http')) {
-                    window.open(link, '_blank');
+                
+                if (state.selectedPost.link && state.selectedPost.link.startsWith('http')) {
+                    window.open(state.selectedPost.link, '_blank');
                 }
                 
-                // Сброс состояния
-                elements.commentPreviewArea.style.display = 'none';
-                elements.editArea.style.display = 'none';
+                document.getElementById('commentPreviewArea').style.display = 'none';
+                document.getElementById('editArea').style.display = 'none';
                 state.selectedPost = null;
-                elements.generationArea.style.display = 'none';
-                elements.noPostSelected.style.display = 'block';
+                document.getElementById('generationArea').style.display = 'none';
+                document.getElementById('noPostSelected').style.display = 'block';
                 renderPosts();
                 
                 saveState();
-            }).catch(err => {
+            }).catch(() => {
                 alert('Ошибка копирования. Скопируйте текст вручную:\n\n' + comment);
             });
         }
 
-        // CSS анимации для уведомлений
+        // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+        
+        function updateStats() {
+            document.getElementById('postsChecked').textContent = state.stats.postsChecked;
+            document.getElementById('commentsGenerated').textContent = state.stats.commentsGenerated;
+            
+            const profile = state.profiles.find(p => p.id === state.activeProfileId);
+            document.getElementById('activeProfileName').textContent = profile ? profile.name : '—';
+            document.getElementById('activeFeedsCount').textContent = profile ? profile.feeds.length : 0;
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        // CSS анимации
         const style = document.createElement('style');
         style.textContent = `
             @keyframes slideIn {
@@ -965,86 +1431,20 @@
         `;
         document.head.appendChild(style);
 
-        function updateStats() {
-            elements.postsChecked.textContent = state.stats.postsChecked;
-            elements.commentsGenerated.textContent = state.stats.commentsGenerated;
-        }
-
-        // Запрос разрешения на уведомления
+        // Запрос уведомлений
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
 
-        // Кнопка тестирования RSS
-        document.getElementById('testRss').addEventListener('click', async () => {
-            const rssUrl = elements.rssUrl.value.trim();
-            if (!rssUrl) {
-                alert('Введите RSS URL для тестирования');
-                return;
-            }
-            
-            const btn = document.getElementById('testRss');
-            const originalText = btn.textContent;
-            btn.textContent = '🔄 Тестирование...';
-            btn.disabled = true;
-            
-            try {
-                console.log('🧪 ТЕСТ RSS:', rssUrl);
-                
-                // Тест 1: Прямой доступ
-                console.log('Тест 1: Прямой доступ к RSS...');
-                try {
-                    const directResponse = await fetch(rssUrl);
-                    console.log('✅ Прямой доступ:', directResponse.ok, directResponse.status);
-                } catch (e) {
-                    console.log('❌ Прямой доступ заблокирован (CORS)', e.message);
-                }
-                
-                // Тест 2: Через прокси
-                console.log('Тест 2: Доступ через прокси...');
-                const proxyUrl = 'https://api.allorigins.win/get?url=';
-                const response = await fetch(proxyUrl + encodeURIComponent(rssUrl));
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
-                
-                const items = xmlDoc.getElementsByTagName('item');
-                const entries = xmlDoc.getElementsByTagName('entry');
-                const totalItems = items.length + entries.length;
-                
-                const channelTitle = xmlDoc.getElementsByTagName('title')[0]?.textContent || 'Unknown';
-                
-                console.log('✅ RSS загружен успешно!');
-                console.log('Канал:', channelTitle);
-                console.log('Всего постов:', totalItems);
-                
-                alert(`✅ RSS работает!\n\nКанал: ${channelTitle}\nПостов в ленте: ${totalItems}\n\nМожете начинать мониторинг.`);
-                
-            } catch (error) {
-                console.error('❌ Тест провален:', error);
-                alert(`❌ Ошибка подключения к RSS\n\n${error.message}\n\nПроверьте:\n- Правильность URL\n- Доступность канала\n- Интернет-соединение\n\nПопробуйте открыть URL в браузере:\n${rssUrl}`);
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
-        });
+        // Автосохранение
+        document.getElementById('apiKey').addEventListener('change', saveState);
+        document.getElementById('checkInterval').addEventListener('change', saveState);
+        document.getElementById('dateFilter').addEventListener('change', saveState);
 
-        // Автосохранение при изменении настроек
-        elements.apiKey.addEventListener('change', saveState);
-        elements.rssUrl.addEventListener('change', saveState);
-        elements.checkInterval.addEventListener('change', saveState);
-        elements.dateFilter.addEventListener('change', saveState);
-
-        // Инициализация при загрузке
+        // Инициализация
         window.addEventListener('DOMContentLoaded', () => {
-            loadSavedState();
-            console.log('✅ Telegram Comment Assistant готов к работе');
-            console.log('📱 Все данные сохраняются локально на вашем устройстве');
+            loadState();
+            console.log('✅ RSS Comment Assistant готов к работе');
         });
 
         // Предотвращение потери данных
@@ -1057,4 +1457,3 @@
     </script>
 </body>
 </html>
-
