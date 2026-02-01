@@ -469,10 +469,10 @@
         </div>
 
         <div class="tabs" id="tabsContainer">
-            <button class="tab active" onclick="switchTab('profiles')">📂 Профили</button>
-            <button class="tab" onclick="switchTab('monitoring')">🔄 Мониторинг</button>
-            <button class="tab" onclick="switchTab('feed')">📰 Лента постов</button>
-            <button class="tab" onclick="switchTab('comments')">✍️ Комментарии</button>
+            <button class="tab active" onclick="switchTab(event, 'profiles')">📂 Профили</button>
+            <button class="tab" onclick="switchTab(event, 'monitoring')">🔄 Мониторинг</button>
+            <button class="tab" onclick="switchTab(event, 'feed')">📰 Лента постов</button>
+            <button class="tab" onclick="switchTab(event, 'comments')">✍️ Комментарии</button>
         </div>
 
         <!-- Вкладка: Профили -->
@@ -747,15 +747,18 @@
         }
 
         // Переключение вкладок
-        function switchTab(tabName) {
-            const clickedTab = event ? event.target : null;
-            
+        function switchTab(evt, tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
             
-            if (clickedTab) {
-                clickedTab.classList.add('active');
+            if (evt && evt.target) {
+                evt.target.classList.add('active');
+            } else {
+                // программное переключение
+                const btn = document.querySelector(`.tab[onclick*="${tabName}"]`);
+                if (btn) btn.classList.add('active');
             }
+            
             document.getElementById(`tab-${tabName}`).style.display = 'block';
             
             if (tabName === 'monitoring') {
@@ -865,7 +868,6 @@
             document.getElementById('editProfileModal').classList.add('show');
             document.getElementById('editProfileModal').dataset.profileId = profileId;
             
-            // Обработчик ключевых слов в модальном окне
             const input = document.getElementById('editProfileKeywordsInput');
             input.onkeypress = (e) => {
                 if (e.key === 'Enter' && e.target.value.trim()) {
@@ -1238,12 +1240,7 @@
             document.getElementById('selectedPostPreview').textContent = 
                 state.selectedPost.text.substring(0, 200) + '...';
             
-            // Переключение на вкладку комментариев
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
-            
-            document.querySelectorAll('.tab')[3].classList.add('active');
-            document.getElementById('tab-comments').style.display = 'block';
+            switchTab(null, 'comments');
         }
 
         // === ГЕНЕРАЦИЯ КОММЕНТАРИЕВ ===
@@ -1309,7 +1306,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'llama-3.1-sonar-small-128k-online',
+                    model: 'sonar-pro',
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
@@ -1320,8 +1317,12 @@
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || 'Ошибка API');
+                let errorMessage = 'Ошибка API';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error?.message || errorMessage;
+                } catch (e) {}
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
