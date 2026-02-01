@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Comment Assistant</title>
+    <style>
+        :root {
+            --color-background: #fcfcf9;
+            --color-surface: #fffffd;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-primary: #21808d;
+            --color-primary-hover: #1d7480;
+            --color-border: rgba(94, 82, 64, 0.2);
+            --color-success: #21808d;
+            --color-warning: #e68161;
+            --radius-base: 8px;
+            --radius-lg: 12px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-background: #1f2121;
+                --color-surface: #262828;
+                --color-text: #f5f5f5;
+                --color-text-secondary: rgba(167, 169, 169, 0.7);
+                --color-primary: #32b8c6;
+                --color-primary-hover: #2da6b2;
+                --color-border: rgba(119, 124, 124, 0.3);
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--color-background);
+            color: var(--color-text);
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+
+        .card-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #777;
+        }
+
+        .status-indicator.active {
+            background: var(--color-success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-base);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--color-primary-hover);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(94, 82, 64, 0.05);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .btn-group button {
+            flex: 1;
+        }
+
+        .feed-item {
+            padding: 16px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .feed-item:hover {
+            border-color: var(--color-primary);
+            background: rgba(33, 128, 141, 0.05);
+        }
+
+        .feed-item.selected {
+            border-color: var(--color-primary);
+            background: rgba(33, 128, 141, 0.1);
+        }
+
+        .feed-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .feed-item-text {
+            font-size: 14px;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .comment-preview {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .comment-preview-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .comment-text {
+            padding: 12px;
+            background: rgba(33, 128, 141, 0.05);
+            border-radius: var(--radius-base);
+            border-left: 3px solid var(--color-primary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-text-secondary);
+        }
+
+        .keywords-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .keyword-tag {
+            background: rgba(33, 128, 141, 0.1);
+            color: var(--color-primary);
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .keyword-tag button {
+            background: none;
+            border: none;
+            color: var(--color-primary);
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .info-box {
+            background: rgba(230, 129, 97, 0.1);
+            border: 1px solid rgba(230, 129, 97, 0.3);
+            border-radius: var(--radius-base);
+            padding: 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            color: var(--color-text-secondary);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💬 Telegram Comment Assistant</h1>
+            <p class="subtitle">Полуавтоматический помощник для комментирования постов с использованием Perplexity AI</p>
+        </div>
+
+        <div class="grid">
+            <!-- Настройки -->
+            <div class="card">
+                <div class="card-header">
+                    <span>⚙️</span>
+                    <span>Настройки мониторинга</span>
+                </div>
+
+                <div class="input-group">
+                    <label for="apiKey">Perplexity API Key</label>
+                    <input type="password" id="apiKey" placeholder="pplx-...">
+                </div>
+
+                <div class="input-group">
+                    <label for="rssUrl">RSS-канал для мониторинга</label>
+                    <input type="text" id="rssUrl" placeholder="https://rsshub.app/telegram/channel/your_channel">
+                    <small style="color: var(--color-text-secondary); font-size: 12px; display: block; margin-top: 4px;">
+                        Используйте: https://rsshub.app/telegram/channel/USERNAME
+                    </small>
+                </div>
+
+                <div class="input-group">
+                    <label for="keywords">Ключевые слова (через Enter)</label>
+                    <input type="text" id="keywordInput" placeholder="ai, автоматизация, python">
+                    <div class="keywords-container" id="keywordsContainer"></div>
+                </div>
+
+                <div class="input-group">
+                    <label for="checkInterval">Интервал проверки (минуты)</label>
+                    <select id="checkInterval">
+                        <option value="5">5 минут</option>
+                        <option value="10" selected>10 минут</option>
+                        <option value="15">15 минут</option>
+                        <option value="30">30 минут</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="dateFilter">Показывать посты за последние</label>
+                    <select id="dateFilter">
+                        <option value="1">1 день</option>
+                        <option value="3" selected>3 дня</option>
+                        <option value="7">7 дней</option>
+                        <option value="14">14 дней</option>
+                        <option value="30">30 дней</option>
+                        <option value="0">Все время</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" id="startMonitoring">Начать мониторинг</button>
+                
+                <div style="margin-top: 12px;">
+                    <button class="btn btn-secondary" id="testRss" style="width: 100%; font-size: 13px;">
+                        🧪 Тест RSS (проверка подключения)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Статус -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span>Статус системы</span>
+                </div>
+
+                <div class="info-box">
+                    ℹ️ Сервис будет мониторить новые посты по вашим темам и предлагать комментарии для одобрения. Ваш аккаунт Telegram не используется напрямую.
+                </div>
+
+                <div style="font-size: 13px; color: var(--color-text-secondary);">
+                    <div style="margin-bottom: 8px;">
+                        <strong>Состояние:</strong> <span id="statusText">Не запущен</span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Проверено постов:</strong> <span id="postsChecked">0</span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong>Сгенерировано комментариев:</strong> <span id="commentsGenerated">0</span>
+                    </div>
+                    <div>
+                        <strong>Следующая проверка:</strong> <span id="nextCheck">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Лента постов -->
+            <div class="card full-width">
+                <div class="card-header">
+                    📰 Новые посты по вашим темам
+                </div>
+                <div id="feedContainer">
+                    <div class="empty-state">
+                        Запустите мониторинг для просмотра постов
+                    </div>
+                </div>
+            </div>
+
+            <!-- Генерация комментария -->
+            <div class="card full-width">
+                <div class="card-header">
+                    ✍️ Генерация комментария
+                </div>
+
+                <div id="generationArea" style="display: none;">
+                    <div class="input-group">
+                        <label>Выбранный пост:</label>
+                        <div id="selectedPostPreview" style="padding: 12px; background: rgba(33, 128, 141, 0.05); border-radius: var(--radius-base); font-size: 14px;"></div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="commentStyle">Стиль комментария</label>
+                        <select id="commentStyle">
+                            <option value="professional">Профессиональный</option>
+                            <option value="friendly">Дружелюбный</option>
+                            <option value="expert">Экспертный</option>
+                            <option value="question">Задать вопрос</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" id="generateComment">Сгенерировать комментарий</button>
+
+                    <div id="commentPreviewArea" style="display: none;">
+                        <div class="comment-preview">
+                            <div class="comment-preview-header">Предложенный комментарий:</div>
+                            <div class="comment-text" id="generatedComment"></div>
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn btn-primary" id="approveComment">✅ Опубликовать</button>
+                            <button class="btn btn-secondary" id="regenerateComment">🔄 Перегенерировать</button>
+                            <button class="btn btn-secondary" id="editComment">✏️ Редактировать</button>
+                        </div>
+
+                        <div class="input-group" id="editArea" style="display: none; margin-top: 16px;">
+                            <label>Отредактированный комментарий:</label>
+                            <textarea id="editedComment" rows="4"></textarea>
+                            <div class="btn-group" style="margin-top: 8px;">
+                                <button class="btn btn-primary" id="saveEdit">Сохранить и опубликовать</button>
+                                <button class="btn btn-secondary" id="cancelEdit">Отмена</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="noPostSelected" class="empty-state">
+                    Выберите пост из ленты для генерации комментария
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Состояние приложения
+        const state = {
+            monitoring: false,
+            keywords: [],
+            selectedPost: null,
+            posts: [],
+            processedPostIds: new Set(),
+            stats: {
+                postsChecked: 0,
+                commentsGenerated: 0
+            },
+            checkInterval: null,
+            nextCheckTime: null
+        };
+
+        // Загрузка сохранённых данных
+        function loadSavedState() {
+            const saved = localStorage.getItem('telegramCommentAssistant');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    state.keywords = data.keywords || [];
+                    state.processedPostIds = new Set(data.processedPostIds || []);
+                    state.stats = data.stats || { postsChecked: 0, commentsGenerated: 0 };
+                    if (data.apiKey) elements.apiKey.value = data.apiKey;
+                    if (data.rssUrl) elements.rssUrl.value = data.rssUrl;
+                    if (data.checkInterval) elements.checkInterval.value = data.checkInterval;
+                    if (data.dateFilter) elements.dateFilter.value = data.dateFilter;
+                    renderKeywords();
+                    updateStats();
+                } catch (e) {
+                    console.error('Ошибка загрузки данных:', e);
+                }
+            }
+        }
+
+        // Сохранение состояния
+        function saveState() {
+            const dataToSave = {
+                apiKey: elements.apiKey.value,
+                rssUrl: elements.rssUrl.value,
+                checkInterval: elements.checkInterval.value,
+                dateFilter: elements.dateFilter.value,
+                keywords: state.keywords,
+                processedPostIds: Array.from(state.processedPostIds),
+                stats: state.stats
+            };
+            localStorage.setItem('telegramCommentAssistant', JSON.stringify(dataToSave));
+        }
+
+        // Элементы DOM
+        const elements = {
+            apiKey: document.getElementById('apiKey'),
+            rssUrl: document.getElementById('rssUrl'),
+            keywordInput: document.getElementById('keywordInput'),
+            keywordsContainer: document.getElementById('keywordsContainer'),
+            checkInterval: document.getElementById('checkInterval'),
+            dateFilter: document.getElementById('dateFilter'),
+            startMonitoring: document.getElementById('startMonitoring'),
+            statusIndicator: document.getElementById('statusIndicator'),
+            statusText: document.getElementById('statusText'),
+            postsChecked: document.getElementById('postsChecked'),
+            commentsGenerated: document.getElementById('commentsGenerated'),
+            nextCheck: document.getElementById('nextCheck'),
+            feedContainer: document.getElementById('feedContainer'),
+            generationArea: document.getElementById('generationArea'),
+            noPostSelected: document.getElementById('noPostSelected'),
+            selectedPostPreview: document.getElementById('selectedPostPreview'),
+            commentStyle: document.getElementById('commentStyle'),
+            generateComment: document.getElementById('generateComment'),
+            commentPreviewArea: document.getElementById('commentPreviewArea'),
+            generatedComment: document.getElementById('generatedComment'),
+            approveComment: document.getElementById('approveComment'),
+            regenerateComment: document.getElementById('regenerateComment'),
+            editComment: document.getElementById('editComment'),
+            editArea: document.getElementById('editArea'),
+            editedComment: document.getElementById('editedComment'),
+            saveEdit: document.getElementById('saveEdit'),
+            cancelEdit: document.getElementById('cancelEdit')
+        };
+
+        // Добавление ключевых слов
+        elements.keywordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.value.trim()) {
+                const keyword = e.target.value.trim();
+                if (!state.keywords.includes(keyword)) {
+                    state.keywords.push(keyword);
+                    renderKeywords();
+                }
+                e.target.value = '';
+            }
+        });
+
+        function renderKeywords() {
+            elements.keywordsContainer.innerHTML = state.keywords.map((kw, index) => `
+                <span class="keyword-tag">
+                    ${kw}
+                    <button onclick="removeKeyword(${index})">×</button>
+                </span>
+            `).join('');
+        }
+
+        function removeKeyword(index) {
+            state.keywords.splice(index, 1);
+            renderKeywords();
+        }
+
+        // Мониторинг
+        elements.startMonitoring.addEventListener('click', () => {
+            if (!state.monitoring) {
+                startMonitoring();
+            } else {
+                stopMonitoring();
+            }
+        });
+
+        function startMonitoring() {
+            if (!elements.apiKey.value) {
+                alert('Пожалуйста, введите Perplexity API Key');
+                return;
+            }
+            if (!elements.rssUrl.value) {
+                alert('Пожалуйста, введите RSS URL');
+                return;
+            }
+
+            state.monitoring = true;
+            elements.startMonitoring.textContent = 'Остановить мониторинг';
+            elements.startMonitoring.style.background = '#e68161';
+            elements.statusIndicator.classList.add('active');
+            elements.statusText.textContent = 'Активен';
+
+            // Первая проверка сразу
+            checkForNewPosts();
+
+            // Установка интервала
+            const intervalMinutes = parseInt(elements.checkInterval.value);
+            state.checkInterval = setInterval(checkForNewPosts, intervalMinutes * 60 * 1000);
+            updateNextCheckTime(intervalMinutes);
+        }
+
+        function stopMonitoring() {
+            state.monitoring = false;
+            elements.startMonitoring.textContent = 'Начать мониторинг';
+            elements.startMonitoring.style.background = '';
+            elements.statusIndicator.classList.remove('active');
+            elements.statusText.textContent = 'Остановлен';
+            elements.nextCheck.textContent = '—';
+            
+            if (state.checkInterval) {
+                clearInterval(state.checkInterval);
+                state.checkInterval = null;
+            }
+        }
+
+        function updateNextCheckTime(minutes) {
+            if (!state.monitoring) return;
+            
+            state.nextCheckTime = new Date(Date.now() + minutes * 60 * 1000);
+            elements.nextCheck.textContent = state.nextCheckTime.toLocaleTimeString('ru-RU', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Проверка новых постов через RSS
+        async function checkForNewPosts() {
+            console.log('Проверка новых постов...');
+            
+            const rssUrl = elements.rssUrl.value.trim();
+            if (!rssUrl) return;
+
+            try {
+                // Используем CORS-прокси для доступа к RSS
+                const proxyUrl = 'https://api.allorigins.win/get?url=';
+                const response = await fetch(proxyUrl + encodeURIComponent(rssUrl));
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки RSS');
+                }
+
+                const data = await response.json();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
+                
+                // Парсинг RSS (поддержка разных форматов)
+                const items = xmlDoc.getElementsByTagName('item');
+                const entries = xmlDoc.getElementsByTagName('entry'); // Atom формат
+                
+                const feedItems = items.length > 0 ? items : entries;
+                let newPostsCount = 0;
+
+                for (let i = 0; i < Math.min(feedItems.length, 10); i++) {
+                    const item = feedItems[i];
+                    
+                    // Извлечение данных (RSS или Atom)
+                    const titleEl = item.getElementsByTagName('title')[0];
+                    const linkEl = item.getElementsByTagName('link')[0];
+                    const descEl = item.getElementsByTagName('description')[0] || 
+                                   item.getElementsByTagName('summary')[0];
+                    const pubDateEl = item.getElementsByTagName('pubDate')[0] || 
+                                      item.getElementsByTagName('published')[0];
+                    
+                    if (!titleEl && !descEl) continue;
+
+                    const title = titleEl ? titleEl.textContent : '';
+                    const description = descEl ? descEl.textContent : '';
+                    const text = (title + ' ' + description).trim();
+                    
+                    // Создание уникального ID
+                    const link = linkEl ? (linkEl.getAttribute('href') || linkEl.textContent) : '';
+                    const postId = link || text.substring(0, 100);
+                    
+                    // Извлечение названия канала из RSS
+                    const channelEl = xmlDoc.getElementsByTagName('title')[0];
+                    const channel = channelEl ? channelEl.textContent : 'Unknown Channel';
+                    
+                    const timestamp = pubDateEl ? new Date(pubDateEl.textContent) : new Date();
+                    
+                    // Фильтрация по дате (проверяем ПЕРЕД добавлением в processedPostIds)
+                    const dateFilterDays = parseInt(elements.dateFilter.value);
+                    if (dateFilterDays > 0) {
+                        const cutoffDate = new Date();
+                        cutoffDate.setDate(cutoffDate.getDate() - dateFilterDays);
+                        if (timestamp < cutoffDate) {
+                            // Добавляем в обработанные, чтобы не проверять повторно
+                            state.processedPostIds.add(postId);
+                            continue;
+                        }
+                    }
+                    
+                    // Пропускаем уже обработанные посты
+                    if (state.processedPostIds.has(postId)) continue;
+                    
+                    // Фильтрация по ключевым словам
+                    if (state.keywords.length > 0 && !matchesKeywords(text)) continue;
+                    
+                    const post = {
+                        id: postId,
+                        channel: channel,
+                        text: text.length > 500 ? text.substring(0, 500) + '...' : text,
+                        timestamp: timestamp,
+                        link: link
+                    };
+
+                    state.posts.unshift(post);
+                    state.processedPostIds.add(postId);
+                    newPostsCount++;
+                }
+
+                state.stats.postsChecked += newPostsCount;
+                
+                if (newPostsCount > 0) {
+                    renderPosts();
+                    updateStats();
+                    saveState();
+                    
+                    // Уведомление о новых постах
+                    if (Notification.permission === 'granted') {
+                        new Notification('Новые посты!', {
+                            body: `Найдено ${newPostsCount} новых постов по вашим темам`,
+                            icon: '💬'
+                        });
+                    }
+                }
+
+                console.log(`✅ Проверка завершена. Новых постов: ${newPostsCount}`);
+
+            } catch (error) {
+                console.error('Ошибка проверки RSS:', error);
+                elements.statusText.textContent = 'Ошибка загрузки RSS';
+            }
+
+            updateNextCheckTime(parseInt(elements.checkInterval.value));
+        }
+
+        function matchesKeywords(text) {
+            const lowerText = text.toLowerCase();
+            return state.keywords.some(kw => lowerText.includes(kw.toLowerCase()));
+        }
+
+        function renderPosts() {
+            if (state.posts.length === 0) {
+                elements.feedContainer.innerHTML = '<div class="empty-state">Пока нет новых постов</div>';
+                return;
+            }
+
+            elements.feedContainer.innerHTML = state.posts.map((post, index) => `
+                <div class="feed-item ${state.selectedPost?.id === post.id ? 'selected' : ''}" onclick="selectPost(${index})">
+                    <div class="feed-item-header">
+                        <span>${post.channel}</span>
+                        <span>${new Date(post.timestamp).toLocaleString('ru-RU')}</span>
+                    </div>
+                    <div class="feed-item-text">${post.text}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectPost(index) {
+            state.selectedPost = state.posts[index];
+            renderPosts();
+            
+            elements.generationArea.style.display = 'block';
+            elements.noPostSelected.style.display = 'none';
+            elements.commentPreviewArea.style.display = 'none';
+            elements.editArea.style.display = 'none';
+            
+            elements.selectedPostPreview.textContent = state.selectedPost.text.substring(0, 150) + '...';
+        }
+
+        // Генерация комментария
+        elements.generateComment.addEventListener('click', async () => {
+            if (!state.selectedPost) return;
+
+            elements.generateComment.disabled = true;
+            elements.generateComment.textContent = 'Генерирую...';
+
+            try {
+                const comment = await generateCommentWithPerplexity();
+                elements.generatedComment.textContent = comment;
+                elements.commentPreviewArea.style.display = 'block';
+                state.stats.commentsGenerated++;
+                updateStats();
+            } catch (error) {
+                alert('Ошибка генерации: ' + error.message);
+            } finally {
+                elements.generateComment.disabled = false;
+                elements.generateComment.textContent = 'Сгенерировать комментарий';
+            }
+        });
+
+        async function generateCommentWithPerplexity() {
+            const apiKey = elements.apiKey.value.trim();
+            if (!apiKey) {
+                throw new Error('Введите Perplexity API Key');
+            }
+
+            const postText = state.selectedPost.text;
+            const style = elements.commentStyle.value;
+
+            // Создание промпта в зависимости от стиля
+            const stylePrompts = {
+                professional: 'Напиши профессиональный комментарий (2-3 предложения) к этому посту. Комментарий должен добавлять ценность, показывать экспертизу в IT и автоматизации бизнес-процессов. Без эмодзи.',
+                friendly: 'Напиши дружелюбный комментарий (2-3 предложения) к этому посту. Покажи личный опыт и заинтересованность темой. Без эмодзи.',
+                expert: 'Напиши экспертный комментарий (2-3 предложения) к этому посту. Задай уточняющий технический вопрос или поделись глубоким инсайтом. Без эмодзи.',
+                question: 'Напиши комментарий-вопрос (1-2 предложения) к этому посту. Задай релевантный вопрос, который поможет узнать больше деталей. Без эмодзи.'
+            };
+
+            const systemPrompt = `Ты - эксперт в области IT, автоматизации бизнес-процессов, управления проектами и AI. 
+Твоя задача - написать качественный комментарий к посту в Telegram-канале.
+
+Важные правила:
+- Комментарий на русском языке
+- Длина: 2-3 предложения (максимум 300 символов)
+- БЕЗ эмодзи и восклицательных знаков
+- Профессиональный тон
+- Не повторяй содержание поста
+- Добавляй ценность или задавай умные вопросы`;
+
+            const userPrompt = `${stylePrompts[style]}
+
+Пост:
+"${postText}"
+
+Твой комментарий:`;
+
+            try {
+                const response = await fetch('https://api.perplexity.ai/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'llama-3.1-sonar-small-128k-online',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: systemPrompt
+                            },
+                            {
+                                role: 'user',
+                                content: userPrompt
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 150
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Ошибка API');
+                }
+
+                const data = await response.json();
+                let comment = data.choices[0].message.content.trim();
+
+                // Очистка от возможных кавычек в начале/конце
+                comment = comment.replace(/^["']|["']$/g, '');
+                
+                // Ограничение длины
+                if (comment.length > 300) {
+                    comment = comment.substring(0, 297) + '...';
+                }
+
+                return comment;
+
+            } catch (error) {
+                console.error('Ошибка Perplexity API:', error);
+                throw new Error(`Ошибка генерации: ${error.message}`);
+            }
+        }
+
+        // Действия с комментарием
+        elements.approveComment.addEventListener('click', () => {
+            const comment = elements.generatedComment.textContent;
+            publishComment(comment);
+        });
+
+        elements.regenerateComment.addEventListener('click', () => {
+            elements.generateComment.click();
+        });
+
+        elements.editComment.addEventListener('click', () => {
+            elements.editArea.style.display = 'block';
+            elements.editedComment.value = elements.generatedComment.textContent;
+        });
+
+        elements.saveEdit.addEventListener('click', () => {
+            const comment = elements.editedComment.value;
+            publishComment(comment);
+        });
+
+        elements.cancelEdit.addEventListener('click', () => {
+            elements.editArea.style.display = 'none';
+        });
+
+        function publishComment(comment) {
+            // Копирование в буфер обмена
+            navigator.clipboard.writeText(comment).then(() => {
+                const link = state.selectedPost.link || 'Telegram';
+                
+                // Создание красивого уведомления
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: var(--color-success);
+                    color: white;
+                    padding: 16px 24px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 1000;
+                    animation: slideIn 0.3s ease;
+                `;
+                notification.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 4px;">✅ Комментарий скопирован!</div>
+                    <div style="font-size: 13px; opacity: 0.9;">Откройте Telegram и опубликуйте вручную</div>
+                `;
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+
+                // Попытка открыть ссылку (если есть)
+                if (link && link.startsWith('http')) {
+                    window.open(link, '_blank');
+                }
+                
+                // Сброс состояния
+                elements.commentPreviewArea.style.display = 'none';
+                elements.editArea.style.display = 'none';
+                state.selectedPost = null;
+                elements.generationArea.style.display = 'none';
+                elements.noPostSelected.style.display = 'block';
+                renderPosts();
+                
+                saveState();
+            }).catch(err => {
+                alert('Ошибка копирования. Скопируйте текст вручную:\n\n' + comment);
+            });
+        }
+
+        // CSS анимации для уведомлений
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        function updateStats() {
+            elements.postsChecked.textContent = state.stats.postsChecked;
+            elements.commentsGenerated.textContent = state.stats.commentsGenerated;
+        }
+
+        // Запрос разрешения на уведомления
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Кнопка тестирования RSS
+        document.getElementById('testRss').addEventListener('click', async () => {
+            const rssUrl = elements.rssUrl.value.trim();
+            if (!rssUrl) {
+                alert('Введите RSS URL для тестирования');
+                return;
+            }
+            
+            const btn = document.getElementById('testRss');
+            const originalText = btn.textContent;
+            btn.textContent = '🔄 Тестирование...';
+            btn.disabled = true;
+            
+            try {
+                console.log('🧪 ТЕСТ RSS:', rssUrl);
+                
+                // Тест 1: Прямой доступ
+                console.log('Тест 1: Прямой доступ к RSS...');
+                try {
+                    const directResponse = await fetch(rssUrl);
+                    console.log('✅ Прямой доступ:', directResponse.ok, directResponse.status);
+                } catch (e) {
+                    console.log('❌ Прямой доступ заблокирован (CORS)', e.message);
+                }
+                
+                // Тест 2: Через прокси
+                console.log('Тест 2: Доступ через прокси...');
+                const proxyUrl = 'https://api.allorigins.win/get?url=';
+                const response = await fetch(proxyUrl + encodeURIComponent(rssUrl));
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
+                
+                const items = xmlDoc.getElementsByTagName('item');
+                const entries = xmlDoc.getElementsByTagName('entry');
+                const totalItems = items.length + entries.length;
+                
+                const channelTitle = xmlDoc.getElementsByTagName('title')[0]?.textContent || 'Unknown';
+                
+                console.log('✅ RSS загружен успешно!');
+                console.log('Канал:', channelTitle);
+                console.log('Всего постов:', totalItems);
+                
+                alert(`✅ RSS работает!\n\nКанал: ${channelTitle}\nПостов в ленте: ${totalItems}\n\nМожете начинать мониторинг.`);
+                
+            } catch (error) {
+                console.error('❌ Тест провален:', error);
+                alert(`❌ Ошибка подключения к RSS\n\n${error.message}\n\nПроверьте:\n- Правильность URL\n- Доступность канала\n- Интернет-соединение\n\nПопробуйте открыть URL в браузере:\n${rssUrl}`);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        // Автосохранение при изменении настроек
+        elements.apiKey.addEventListener('change', saveState);
+        elements.rssUrl.addEventListener('change', saveState);
+        elements.checkInterval.addEventListener('change', saveState);
+        elements.dateFilter.addEventListener('change', saveState);
+
+        // Инициализация при загрузке
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedState();
+            console.log('✅ Telegram Comment Assistant готов к работе');
+            console.log('📱 Все данные сохраняются локально на вашем устройстве');
+        });
+
+        // Предотвращение потери данных
+        window.addEventListener('beforeunload', (e) => {
+            if (state.monitoring) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
+
