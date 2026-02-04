@@ -295,6 +295,9 @@
             border-left: 3px solid var(--color-primary);
             font-size: 14px;
             line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: none;
         }
 
         .loading {
@@ -469,10 +472,10 @@
         </div>
 
         <div class="tabs" id="tabsContainer">
-            <button class="tab active" onclick="switchTab(event, 'profiles')">📂 Профили</button>
-            <button class="tab" onclick="switchTab(event, 'monitoring')">🔄 Мониторинг</button>
-            <button class="tab" onclick="switchTab(event, 'feed')">📰 Лента постов</button>
-            <button class="tab" onclick="switchTab(event, 'comments')">✍️ Комментарии</button>
+            <button class="tab active" onclick="switchTab('profiles')">📂 Профили</button>
+            <button class="tab" onclick="switchTab('monitoring')">🔄 Мониторинг</button>
+            <button class="tab" onclick="switchTab('feed')">📰 Лента постов</button>
+            <button class="tab" onclick="switchTab('comments')">✍️ Комментарии</button>
         </div>
 
         <!-- Вкладка: Профили -->
@@ -632,6 +635,7 @@
                             <option value="friendly">Дружелюбный</option>
                             <option value="expert">Экспертный</option>
                             <option value="question">Задать вопрос</option>
+                            <option value="alternative">Альтернативное мнение</option>
                         </select>
                     </div>
 
@@ -747,18 +751,15 @@
         }
 
         // Переключение вкладок
-        function switchTab(evt, tabName) {
+        function switchTab(tabName) {
+            const clickedTab = event ? event.target : null;
+            
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
             
-            if (evt && evt.target) {
-                evt.target.classList.add('active');
-            } else {
-                // программное переключение
-                const btn = document.querySelector(`.tab[onclick*="${tabName}"]`);
-                if (btn) btn.classList.add('active');
+            if (clickedTab) {
+                clickedTab.classList.add('active');
             }
-            
             document.getElementById(`tab-${tabName}`).style.display = 'block';
             
             if (tabName === 'monitoring') {
@@ -868,6 +869,7 @@
             document.getElementById('editProfileModal').classList.add('show');
             document.getElementById('editProfileModal').dataset.profileId = profileId;
             
+            // Обработчик ключевых слов в модальном окне
             const input = document.getElementById('editProfileKeywordsInput');
             input.onkeypress = (e) => {
                 if (e.key === 'Enter' && e.target.value.trim()) {
@@ -1240,7 +1242,12 @@
             document.getElementById('selectedPostPreview').textContent = 
                 state.selectedPost.text.substring(0, 200) + '...';
             
-            switchTab(null, 'comments');
+            // Переключение на вкладку комментариев
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
+            
+            document.querySelectorAll('.tab')[3].classList.add('active');
+            document.getElementById('tab-comments').style.display = 'block';
         }
 
         // === ГЕНЕРАЦИЯ КОММЕНТАРИЕВ ===
@@ -1278,7 +1285,8 @@
                 professional: 'Напиши профессиональный комментарий (2-3 предложения) к этому посту. Комментарий должен добавлять ценность, показывать экспертизу в IT и автоматизации бизнес-процессов. Без эмодзи.',
                 friendly: 'Напиши дружелюбный комментарий (2-3 предложения) к этому посту. Покажи личный опыт и заинтересованность темой. Без эмодзи.',
                 expert: 'Напиши экспертный комментарий (2-3 предложения) к этому посту. Задай уточняющий технический вопрос или поделись глубоким инсайтом. Без эмодзи.',
-                question: 'Напиши комментарий-вопрос (1-2 предложения) к этому посту. Задай релевантный вопрос, который поможет узнать больше деталей. Без эмодзи.'
+                question: 'Напиши комментарий-вопрос (1-2 предложения) к этому посту. Задай релевантный вопрос, который поможет узнать больше деталей. Без эмодзи.',
+                alternative: 'Напиши комментарий с альтернативной точкой зрения (3-4 предложения) к этому посту. Вежливо оспорь основной тезис автора, представь иную позицию, подкрепленную конкретными фактами или исследованиями. Используй формулировки "С другой стороны...", "Однако стоит отметить..." или "Альтернативный взгляд...". Без эмодзи.'
             };
             
             const systemPrompt = `Ты - эксперт в области IT, автоматизации бизнес-процессов, управления проектами и AI. 
@@ -1304,25 +1312,20 @@
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'sonar-pro',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 150
-                })
+                },                    body: JSON.stringify({
+                        model: 'sonar-pro',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 200
+                    })
             });
             
             if (!response.ok) {
-                let errorMessage = 'Ошибка API';
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error?.message || errorMessage;
-                } catch (e) {}
-                throw new Error(errorMessage);
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'Ошибка API');
             }
             
             const data = await response.json();
